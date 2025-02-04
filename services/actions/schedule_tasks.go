@@ -12,6 +12,7 @@ import (
 	"code.gitea.io/gitea/models/db"
 	repo_model "code.gitea.io/gitea/models/repo"
 	"code.gitea.io/gitea/models/unit"
+	"code.gitea.io/gitea/modules/json"
 	"code.gitea.io/gitea/modules/log"
 	"code.gitea.io/gitea/modules/timeutil"
 	webhook_module "code.gitea.io/gitea/modules/webhook"
@@ -52,17 +53,42 @@ func startTasks(ctx context.Context) error {
 
 		// Loop through each spec and create a schedule task for it
 		for _, row := range specs {
+			specInfo := fmt.Sprintf("%s", row)
+			if ret, err := json.Marshal(row); err == nil {
+				specInfo = string(ret)
+			}
 			// cancel running jobs if the event is push
+			// if row.Schedule.Event == webhook_module.HookEventPush {
+			// 	// cancel running jobs of the same workflow
+			// 	if err := actions_model.CancelPreviousJobs(
+			// 		ctx,
+			// 		row.RepoID,
+			// 		row.Schedule.Ref,
+			// 		row.Schedule.WorkflowID,
+			// 		webhook_module.HookEventSchedule,
+			// 	); err != nil {
+			// 		log.Error("CancelPreviousJobs: %v", err)
+			// 	}
+			// }
+
 			if row.Schedule.Event == webhook_module.HookEventPush {
-				// cancel running jobs of the same workflow
-				if err := actions_model.CancelPreviousJobs(
-					ctx,
-					row.RepoID,
-					row.Schedule.Ref,
-					row.Schedule.WorkflowID,
-					webhook_module.HookEventSchedule,
-				); err != nil {
-					log.Error("CancelPreviousJobs: %v", err)
+				// check if there's already waiting job
+				_, total, err := db.FindAndCount[actions_model.ActionRun](ctx, actions_model.FindRunOptions{
+					RepoID:       row.RepoID,
+					Ref:          row.Schedule.Ref,
+					WorkflowID:   row.Schedule.WorkflowID,
+					TriggerEvent: webhook_module.HookEventSchedule,
+					Status:       []actions_model.Status{actions_model.StatusRunning, actions_model.StatusWaiting, actions_model.StatusBlocked},
+				})
+				if err != nil {
+					log.Error("CheckPreviousRun: %v", err)
+				}
+				if total != 0 {
+					// already queued, don't queue another job again
+					// although we skipped the job here, when the existing running job was finished,
+					// the cron job will be scheduled at once because we didn't update the Next field
+					log.Info("CheckPreviousRun skipped spec because there's already a run: %v", string(specInfo))
+					continue
 				}
 			}
 
