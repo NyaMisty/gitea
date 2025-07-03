@@ -70,6 +70,7 @@ func startTasks(ctx context.Context) error {
 			// 		log.Error("CancelPreviousJobs: %v", err)
 			// 	}
 			// }
+			log.Info("CheckPreviousRun: %s", specInfo)
 
 			if row.Schedule.Event == webhook_module.HookEventPush {
 				// check if there's already waiting job
