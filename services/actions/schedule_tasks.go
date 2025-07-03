@@ -57,22 +57,22 @@ func startTasks(ctx context.Context) error {
 			if ret, err := json.Marshal(row); err == nil {
 				specInfo = string(ret)
 			}
+			log.Info("Handling task: %s", specInfo)
 			// cancel running jobs if the event is push
-			// if row.Schedule.Event == webhook_module.HookEventPush {
-			// 	// cancel running jobs of the same workflow
-			// 	if err := actions_model.CancelPreviousJobs(
-			// 		ctx,
-			// 		row.RepoID,
-			// 		row.Schedule.Ref,
-			// 		row.Schedule.WorkflowID,
-			// 		webhook_module.HookEventSchedule,
-			// 	); err != nil {
-			// 		log.Error("CancelPreviousJobs: %v", err)
-			// 	}
-			// }
-			log.Info("CheckPreviousRun: %s", specInfo)
-
-			if row.Schedule.Event == webhook_module.HookEventPush {
+			//if row.Schedule.Event == webhook_module.HookEventPush {
+			//	// cancel running jobs of the same workflow
+			//	if err := actions_model.CancelPreviousJobs(
+			//		ctx,
+			//		row.RepoID,
+			//		row.Schedule.Ref,
+			//		row.Schedule.WorkflowID,
+			//		webhook_module.HookEventSchedule,
+			//	); err != nil {
+			//		log.Error("CancelPreviousJobs: %v", err)
+			//	}
+			//}
+			if true {
+				// for other events (for example schedule), check if there's already a previous run
 				// check if there's already waiting job
 				_, total, err := db.FindAndCount[actions_model.ActionRun](ctx, actions_model.FindRunOptions{
 					RepoID:       row.RepoID,
